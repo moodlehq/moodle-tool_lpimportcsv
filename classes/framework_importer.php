@@ -27,7 +27,9 @@ namespace tool_lpimportcsv;
 defined('MOODLE_INTERNAL') || die('Direct access to this script is forbidden.');
 
 use core_competency\api;
+use grade_scale;
 use stdClass;
+use context_system;
 use csv_import_reader;
 
 /**
@@ -42,8 +44,10 @@ class framework_importer {
     /** @var string $error The errors message from reading the xml */
     var $error = '';
 
-    /** @var array $tree The competencies tree */
-    var $domains = array();
+    /** @var array $flat The flat competencies tree */
+    var $flat = array();
+    /** @var array $framework The framework info */
+    var $framework = array();
 
     public function fail($msg) {
         $this->error = $msg;
@@ -56,7 +60,9 @@ class framework_importer {
     public function __construct($text) {
         global $CFG;
 
-        // The format of our records is Domain, Category, Category Description, Item, Item Description.
+        // The format of our records is:
+        // Parent ID number, ID number, Shortname, Description, Description format, Scale values, Scale configuration, Rule type, Rule outcome, Rule config, Is framework, Taxonomy
+
         // The idnumber is concatenated with the category names.
         require_once($CFG->libdir . '/csvlib.class.php');
 
@@ -79,56 +85,67 @@ class framework_importer {
 
         $domainid = 1;
 
+        $flat = array();
+        $framework = null;
+
         while ($row = $importer->next()) {
-            $domain = $row[0];
-            $category = $row[1];
-            $categorydesc = $row[2];
-            $item = $row[3];
-            $itemdesc = $row[4];
-
-            if (!isset($this->domains[$domain])) {
-                $domainrecord = new stdClass();
-                $domainrecord->name = $domain;
-                $domainrecord->description = '';
-                $domainrecord->idnumber = $domainid;
-                $domainid += 1;
-                $domainrecord->categories = array();
-
-                $this->domains[$domain] = $domainrecord;
-            }
-
-            if (!isset($this->domains[$domain]->categories[$category])) {
-                $categoryrecord = new stdClass();
-
-                list($idnumber, $name) = explode(' ', $category, 2);
-                $idnumber = trim($idnumber);
-                $name = trim($name);
-
-                $categoryrecord->name = $name;
-                $categoryrecord->description = '';
-                $categoryrecord->idnumber = $idnumber;
-                $categoryrecord->items = array();
-
-                $this->domains[$domain]->categories[$category] = $categoryrecord;
-            }
-
-            if (!isset($this->domains[$domain]->categories[$category]->items[$item])) {
-                $itemrecord = new stdClass();
-
-                list($idnumber, $name) = explode(' ', $item, 2);
-                $idnumber = trim($idnumber);
-                $name = trim($name);
-
-                $itemrecord->name = $name;
-                $itemrecord->description = $name;
-                $itemrecord->idnumber = $idnumber;
-
-                $this->domains[$domain]->categories[$category]->items[$item] = $itemrecord;
+            $parentidnumber = $row[0];
+            $idnumber = $row[1];
+            $shortname = $row[2];
+            $description = $row[3];
+            $descriptionformat = $row[4];
+            $scalevalues = $row[5];
+            $scaleconfiguration = $row[6];
+            $isframework = $row[7];
+            $taxonomies = $row[8];
+            
+            if ($isframework) {
+                $framework = new stdClass();
+                $framework->idnumber = shorten_text(clean_param($idnumber, PARAM_TEXT), 100);
+                $framework->shortname = shorten_text(clean_param($shortname, PARAM_TEXT), 100);
+                $framework->description = clean_param($description, PARAM_RAW);
+                $framework->descriptionformat = clean_param($descriptionformat, PARAM_INT);
+                $framework->scalevalues = $scalevalues;
+                $framework->scaleconfiguration = $scaleconfiguration;
+                $framework->taxonomies = $taxonomies;
+                $framework->children = array();
+            } else {
+                $competency = new stdClass();
+                $competency->parentidnumber = clean_param($parentidnumber, PARAM_TEXT);
+                $competency->idnumber = shorten_text(clean_param($idnumber, PARAM_TEXT), 100);
+                $competency->shortname = shorten_text(clean_param($shortname, PARAM_TEXT), 100);
+                $competency->description = clean_param($description, PARAM_RAW);
+                $competency->descriptionformat = clean_param($descriptionformat, PARAM_INT);
+                $competency->scalevalues = $scalevalues;
+                $competency->scaleconfiguration = $scaleconfiguration;
+                $competency->children = array();
+                $flat[$idnumber] = $competency;
             }
         }
+        $this->flat = $flat;
+        $this->framework = $framework;
 
         $importer->close();
         $importer->cleanup();
+        if ($this->framework == null) {
+            $this->fail(get_string('invalidimportfile', 'tool_lpimportcsv'));
+            return;
+        } else {
+            // Build a tree from this flat list.
+            $this->add_children($this->framework, '');    
+        }
+    }
+
+    /**
+     * Recursive function to build a tree from the flat list of nodes.
+     */
+    public function add_children(& $node, $parentidnumber) {
+        foreach ($this->flat as $competency) {
+            if ($competency->parentidnumber == $parentidnumber) {
+                $node->children[] = $competency;
+                $this->add_children($competency, $competency->idnumber);
+            } 
+        }
     }
 
     /**
@@ -138,48 +155,97 @@ class framework_importer {
         return $this->error;
     }
 
-    public function create_competency($parent, $record, $framework, $addrule = false) {
+    /**
+     * Recursive function to add a competency with all it's children.
+     */
+    public function create_competency($record, $parent, $framework) {
         $competency = new stdClass();
         $competency->competencyframeworkid = $framework->get_id();
-        $competency->shortname = trim(clean_param(shorten_text($record->name, 80), PARAM_TEXT));
+        $competency->shortname = $record->shortname;
         if (!empty($record->description)) {
-            $competency->description = trim(clean_param($record->description, PARAM_TEXT));
+            $competency->description = $record->description;
+            $competency->descriptionformat = $record->descriptionformat;
+        }
+        if ($record->scalevalues) {
+            $competency->scaleid = $this->get_scale_id($record->scalevalues, $competency->shortname);
+            $competency->scaleconfiguration = $this->get_scale_configuration($competency->scaleid, $record->scaleconfiguration);
         }
         if ($parent) {
             $competency->parentid = $parent->get_id();
         } else {
             $competency->parentid = 0;
         }
-        $competency->idnumber = trim(clean_param($record->idnumber, PARAM_TEXT));
+        $competency->idnumber = $record->idnumber;
 
         if (!empty($competency->idnumber) && !empty($competency->shortname)) {
-            $result = api::create_competency($competency);
-
-            if ($addrule) {
-                $result->set_ruletype('core_competency\competency_rule_all');
-                $result->set_ruleoutcome(\core_competency\competency::OUTCOME_EVIDENCE);
-                $result->update();
+            $comp = api::create_competency($competency);
+            foreach ($record->children as $child) {
+                $this->create_competency($child, $comp, $framework);
             }
-            return $result;
+
+            return $comp;
         }
         return false;
     }
 
+    /**
+     * Recreate the scale config to point to a new scaleid.
+     */
+    public function get_scale_configuration($scaleid, $config) {
+        $asarray = json_decode($config);
+        $asarray[0]->scaleid = $scaleid;
+        return json_encode($asarray);
+    }
 
     /**
-     * @param \core_competency\competency_framework
-     * @return boolean
+     * Search for a global scale that matches this set of scalevalues.
+     * If one is not found it will be created.
      */
-    public function import_to_framework($framework) {
-        foreach ($this->domains as $domain) {
-            $parentdomain = $this->create_competency(null, $domain, $framework);
-            foreach ($domain->categories as $category) {
-                $parentcategory = $this->create_competency($parentdomain, $category, $framework, true);
-                foreach ($category->items as $item) {
-                    $this->create_competency($parentcategory, $item, $framework);
-                }
+    public function get_scale_id($scalevalues, $competencyname) {
+        global $CFG, $USER;
+
+        require_once($CFG->libdir . '/gradelib.php');
+
+        $allscales = grade_scale::fetch_all_global();
+        $matchingscale = false;
+        foreach ($allscales as $scale) {
+            if ($scale->compact_items() == $scalevalues) {
+                $matchingscale = $scale;
             }
         }
-        return true;
+        if (!$matchingscale) {
+            // Create it.
+            $newscale = new grade_scale();
+            $newscale->name = get_string('competencyscale', 'tool_lpimportcsv', $competencyname);
+            $newscale->courseid = 0;
+            $newscale->userid = $USER->id;
+            $newscale->scale = $scalevalues;
+            $newscale->description = get_string('competencyscaledescription', 'tool_lpimportcsv');
+            $newscale->insert();
+            return $newscale->id;
+        }
+        return $matchingscale->id;
+    }
+
+    /**
+     * Do the job.
+     */
+    public function import() {
+        $record = clone $this->framework;
+        unset($record->children);
+
+        $record->scaleid = $this->get_scale_id($record->scalevalues, $record->shortname);
+        $record->scaleconfiguration = $this->get_scale_configuration($record->scaleid, $record->scaleconfiguration);
+        unset($record->scalevalues);
+        $record->contextid = context_system::instance()->id;
+        
+        $framework = api::create_framework($record);
+
+        // Now all the children;
+        foreach ($this->framework->children as $comp) {
+            $this->create_competency($comp, null, $framework);
+        }
+
+        return $framework;
     }
 }

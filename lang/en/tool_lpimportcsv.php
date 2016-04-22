@@ -22,6 +22,25 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$string['pluginname'] = 'Import Framework from CSV';
+$string['pluginname'] = 'Import competency framework (csv)';
+$string['exportnavlink'] = 'Export competency framework (csv)';
 $string['importfile'] = 'CSV framework description file';
 $string['invalidimportfile'] = 'File format is invalid.';
+$string['noframeworks'] = 'No competency frameworks have been created yet';
+$string['export'] = 'Export';
+$string['import'] = 'Import';
+
+$string['parentidnumber'] = 'Parent ID number';
+$string['idnumber'] = 'ID number';
+$string['shortname'] = 'Shortname';
+$string['description'] = 'Description';
+$string['descriptionformat'] = 'Description format';
+$string['scalevalues'] = 'Scale values';
+$string['scaleconfiguration'] = 'Scale configuration';
+$string['ruletype'] = 'Rule type';
+$string['ruleoutcome'] = 'Rule outcome';
+$string['ruleconfig'] = 'Rule config';
+$string['isframework'] = 'Is framework';
+$string['taxonomy'] = 'Taxonomy';
+$string['competencyscale'] = 'Competency Scale: {$a}';
+$string['competencyscaledescription'] = 'Competency scale created by import';

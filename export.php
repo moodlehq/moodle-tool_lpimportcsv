@@ -15,44 +15,38 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Page to edit a plan.
+ * Page to export a competency framework as a CSV.
  *
- * @package    tool_lp
- * @copyright  2015 David Monllao
+ * @package    tool_lpimportcsv
+ * @copyright  2016 Damyon Wiese
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir.'/adminlib.php');
 
-$pagetitle = get_string('pluginname', 'tool_lpimportcsv');
+$pagetitle = get_string('exportnavlink', 'tool_lpimportcsv');
 
 $context = context_system::instance();
 
-$url = new moodle_url("/admin/tool/lpimportcsv/index.php");
+$url = new moodle_url("/admin/tool/lpimportcsv/export.php");
 $PAGE->set_context($context);
 $PAGE->set_url($url);
 $PAGE->set_title($pagetitle);
 $PAGE->set_pagelayout('admin');
 $PAGE->set_heading($pagetitle);
 
-$form = new \tool_lpimportcsv\form\import($url->out(false));
+$form = new \tool_lpimportcsv\form\export($url->out(false), array('persistent' => null, 'context' => $context));
 
-if ($data = $form->get_data()) {
+if ($form->is_cancelled()) {
+    redirect(new moodle_url('/admin/tool/lp/competencyframeworks.php', array('pagecontextid' => $context->id)));
+} else if ($data = $form->get_data()) {
     require_sesskey();
+    
+    $exporter = new \tool_lpimportcsv\framework_exporter($data->frameworkid);
 
-    $text = $form->get_file_content('importfile');
-    $importer = new \tool_lpimportcsv\framework_importer($text);
-
-    $error = $importer->get_error();
-    if ($error) {
-        $form->set_import_error($error);
-    } else {
-
-        $framework = $importer->import();
-        redirect(new moodle_url('continue.php', array('id' => $framework->get_id())));
-        die();
-    }
+    $exporter->export();
+    die();
 }
 
 echo $OUTPUT->header();

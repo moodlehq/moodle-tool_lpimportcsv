@@ -33,6 +33,14 @@ $temp = new admin_externalpage(
     'moodle/competency:competencymanage'
 );
 $ADMIN->add('competencies', $temp);
+// Export competency framework page.
+$temp = new admin_externalpage(
+    'toollpexportcsv',
+    get_string('exportnavlink', 'tool_lpimportcsv'),
+    new moodle_url('/admin/tool/lpimportcsv/export.php'),
+    'moodle/competency:competencymanage'
+);
+$ADMIN->add('competencies', $temp);
 
 // No report settings.
 $settings = null;
