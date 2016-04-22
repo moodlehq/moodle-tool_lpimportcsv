@@ -26,7 +26,7 @@ namespace tool_lpimportcsv;
 
 defined('MOODLE_INTERNAL') || die('Direct access to this script is forbidden.');
 
-use tool_lp\api;
+use core_competency\api;
 use stdClass;
 use csv_import_reader;
 
@@ -156,8 +156,8 @@ class framework_importer {
             $result = api::create_competency($competency);
 
             if ($addrule) {
-                $result->set_ruletype('tool_lp\competency_rule_all');
-                $result->set_ruleoutcome(\tool_lp\competency::OUTCOME_EVIDENCE);
+                $result->set_ruletype('core_competency\competency_rule_all');
+                $result->set_ruleoutcome(\core_competency\competency::OUTCOME_EVIDENCE);
                 $result->update();
             }
             return $result;
@@ -167,7 +167,7 @@ class framework_importer {
 
 
     /**
-     * @param \tool_lp\competency_framework
+     * @param \core_competency\competency_framework
      * @return boolean
      */
     public function import_to_framework($framework) {

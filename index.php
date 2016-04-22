@@ -51,7 +51,7 @@ if ($data = $form->get_data()) {
 
         unset($data->importfile);
 
-        $framework = \tool_lp\api::create_framework($data);
+        $framework = \core_competency\api::create_framework($data);
 
         if ($framework) {
             $importer->import_to_framework($framework);
