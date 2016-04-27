@@ -48,6 +48,7 @@ class framework_importer {
     var $flat = array();
     /** @var array $framework The framework info */
     var $framework = array();
+    var $mappings = array();
 
     public function fail($msg) {
         $this->error = $msg;
@@ -96,8 +97,12 @@ class framework_importer {
             $descriptionformat = $row[4];
             $scalevalues = $row[5];
             $scaleconfiguration = $row[6];
-            $isframework = $row[7];
-            $taxonomies = $row[8];
+            $ruletype = $row[7];
+            $ruleoutcome = $row[8];
+            $ruleconfig = $row[9];
+            $exportid = $row[10];
+            $isframework = $row[11];
+            $taxonomies = $row[12];
             
             if ($isframework) {
                 $framework = new stdClass();
@@ -116,6 +121,10 @@ class framework_importer {
                 $competency->shortname = shorten_text(clean_param($shortname, PARAM_TEXT), 100);
                 $competency->description = clean_param($description, PARAM_RAW);
                 $competency->descriptionformat = clean_param($descriptionformat, PARAM_INT);
+                $competency->ruletype = $ruletype;
+                $competency->ruleoutcome = clean_param($ruleoutcome, PARAM_INT);
+                $competency->ruleconfig = $ruleconfig;
+                $competency->exportid = $exportid;
                 $competency->scalevalues = $scalevalues;
                 $competency->scaleconfiguration = $scaleconfiguration;
                 $competency->children = array();
@@ -179,6 +188,10 @@ class framework_importer {
 
         if (!empty($competency->idnumber) && !empty($competency->shortname)) {
             $comp = api::create_competency($competency);
+            if ($record->exportid) {
+                $this->mappings[$record->exportid] = $comp;
+            }
+            $record->createdcomp = $comp;
             foreach ($record->children as $child) {
                 $this->create_competency($child, $comp, $framework);
             }
@@ -227,6 +240,25 @@ class framework_importer {
         return $matchingscale->id;
     }
 
+    private function set_rules($record) {
+        $comp = $record->createdcomp;
+        if ($record->ruletype) {
+            $class = $record->ruletype;
+            $oldruleconfig = $record->ruleconfig;
+            if ($oldruleconfig == "null") {
+                $oldruleconfig = null;
+            }
+            $newruleconfig = $class::migrate_config($oldruleconfig, $this->mappings);
+            $comp->set_ruleconfig($newruleconfig);
+            $comp->set_ruletype($class);
+            $comp->set_ruleoutcome($record->ruleoutcome);
+            $comp->update();
+        }
+        foreach ($record->children as $child) {
+            $this->set_rules($child);
+        }
+    }
+
     /**
      * Do the job.
      */
@@ -244,6 +276,11 @@ class framework_importer {
         // Now all the children;
         foreach ($this->framework->children as $comp) {
             $this->create_competency($comp, null, $framework);
+        }
+
+        // Now create the rules.
+        foreach ($this->framework->children as $record) {
+            $this->set_rules($record);
         }
 
         return $framework;
