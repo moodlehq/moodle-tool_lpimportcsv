@@ -28,6 +28,8 @@ defined('MOODLE_INTERNAL') || die('Direct access to this script is forbidden.');
 
 use moodleform;
 use core_competency\api;
+use core_text;
+use csv_import_reader;
 
 require_once($CFG->libdir.'/formslib.php');
 
@@ -44,10 +46,32 @@ class import extends moodleform {
      * Define the form - called by parent constructor
      */
     public function definition() {
+        global $CFG;
+        require_once($CFG->libdir . '/csvlib.class.php');
+
         $mform = $this->_form;
         $element = $mform->createElement('filepicker', 'importfile', get_string('importfile', 'tool_lpimportcsv'));
         $mform->addElement($element);
         $mform->addRule('importfile', null, 'required');
+        $mform->addElement('hidden', 'confirm', 0);
+        $mform->setType('confirm', PARAM_BOOL);
+
+        $choices = csv_import_reader::get_delimiter_list();
+        $mform->addElement('select', 'delimiter_name', get_string('csvdelimiter', 'tool_lpimportcsv'), $choices);
+        if (array_key_exists('cfg', $choices)) {
+            $mform->setDefault('delimiter_name', 'cfg');
+        } else if (get_string('listsep', 'langconfig') == ';') {
+            $mform->setDefault('delimiter_name', 'semicolon');
+        } else {
+            $mform->setDefault('delimiter_name', 'comma');
+        }
+        $mform->addHelpButton('delimiter_name', 'csvdelimiter', 'tool_lpimportcsv');
+
+        $choices = core_text::get_encodings();
+        $mform->addElement('select', 'encoding', get_string('encoding', 'tool_lpimportcsv'), $choices);
+        $mform->setDefault('encoding', 'UTF-8');
+        $mform->addHelpButton('encoding', 'encoding', 'tool_lpimportcsv');
+
         $this->add_action_buttons(true, get_string('import', 'tool_lpimportcsv'));
     }
 

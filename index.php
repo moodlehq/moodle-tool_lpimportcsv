@@ -36,22 +36,40 @@ $PAGE->set_title($pagetitle);
 $PAGE->set_pagelayout('admin');
 $PAGE->set_heading($pagetitle);
 
-$form = new \tool_lpimportcsv\form\import($url->out(false));
+$form = null;
+if (optional_param('needsconfirm', 0, PARAM_BOOL)) {
+    $form = new \tool_lpimportcsv\form\import($url->out(false));
+} else if (optional_param('confirm', 0, PARAM_BOOL)) {
+    $importer = new \tool_lpimportcsv\framework_importer();
+    $form = new \tool_lpimportcsv\form\import_confirm(null, $importer);
+} else {
+    $form = new \tool_lpimportcsv\form\import($url->out(false));
+}
 
 if ($data = $form->get_data()) {
     require_sesskey();
 
-    $text = $form->get_file_content('importfile');
-    $importer = new \tool_lpimportcsv\framework_importer($text);
-
-    $error = $importer->get_error();
-    if ($error) {
-        $form->set_import_error($error);
-    } else {
+    if ($data->confirm) {
+        $importid = $data->importid;
+        $importer = new \tool_lpimportcsv\framework_importer(null, null, null, $importid, $data);
 
         $framework = $importer->import();
         redirect(new moodle_url('continue.php', array('id' => $framework->get_id())));
         die();
+    } else {
+        $text = $form->get_file_content('importfile');
+        $encoding = $data->encoding;
+        $delimiter = $data->delimiter_name;
+        $importer = new \tool_lpimportcsv\framework_importer($text, $encoding, $delimiter);
+        $error = $importer->get_error();
+        if ($error) {
+            $form->set_import_error($error);
+        } else {
+            $confirmform = new \tool_lpimportcsv\form\import_confirm(null, $importer);
+            $form = $confirmform;
+        
+            $pagetitle = get_string('confirmcolumnmappings', 'tool_lpimportcsv');
+        }
     }
 }
 

@@ -49,16 +49,84 @@ class framework_importer {
     /** @var array $framework The framework info */
     var $framework = array();
     var $mappings = array();
+    var $importid = 0;
+    var $importer = null;
+    var $foundheaders = array();
 
     public function fail($msg) {
         $this->error = $msg;
         return false;
     }
 
+    public function get_importid() {
+        return $this->importid;
+    }
+
+    public static function list_required_headers() {
+        return array(
+            get_string('parentidnumber', 'tool_lpimportcsv'),
+            get_string('idnumber', 'tool_lpimportcsv'),
+            get_string('shortname', 'tool_lpimportcsv'),
+            get_string('description', 'tool_lpimportcsv'),
+            get_string('descriptionformat', 'tool_lpimportcsv'),
+            get_string('scalevalues', 'tool_lpimportcsv'),
+            get_string('scaleconfiguration', 'tool_lpimportcsv'),
+            get_string('ruletype', 'tool_lpimportcsv'),
+            get_string('ruleoutcome', 'tool_lpimportcsv'),
+            get_string('ruleconfig', 'tool_lpimportcsv'),
+            get_string('relatedidnumbers', 'tool_lpimportcsv'),
+            get_string('exportid', 'tool_lpimportcsv'),
+            get_string('isframework', 'tool_lpimportcsv'),
+            get_string('taxonomy', 'tool_lpimportcsv'),
+        );
+    }
+
+    public function list_found_headers() {
+        return $this->foundheaders;
+    }
+
+    private function read_mapping_data($data) {
+        if ($data) {
+            return array(
+                'parentidnumber' => $data->header0,   
+                'idnumber' => $data->header1,
+                'shortname' => $data->header2,
+                'description' => $data->header3,
+                'descriptionformat' => $data->header4,
+                'scalevalues' => $data->header5,
+                'scaleconfiguration' => $data->header6,
+                'ruletype' => $data->header7,
+                'ruleoutcome' => $data->header8,
+                'ruleconfig' => $data->header9,
+                'relatedidnumbers' => $data->header10,
+                'exportid' => $data->header11,
+                'isframework' => $data->header12,
+                'taxonomies' => $data->header13
+            );
+        } else {
+            return array(
+                'parentidnumber' => 0,   
+                'idnumber' => 1,
+                'shortname' => 2,
+                'description' => 3,
+                'descriptionformat' => 4,
+                'scalevalues' => 5,
+                'scaleconfiguration' => 6,
+                'ruletype' => 7,
+                'ruleoutcome' => 8,
+                'ruleconfig' => 9,
+                'relatedidnumbers' => 10,
+                'exportid' => 11,
+                'isframework' => 12,
+                'taxonomies' => 13
+            );
+        }
+    }
+
     /**
      * Constructor - parses the raw text for sanity.
      */
-    public function __construct($text) {
+    public function __construct($text = null, $encoding = null, $delimiter = null, $importid = 0, $mappingdata = null) {
         global $CFG;
 
         // The format of our records is:
@@ -68,42 +136,58 @@ class framework_importer {
         require_once($CFG->libdir . '/csvlib.class.php');
 
         $type = 'competency_framework';
-        $importid = csv_import_reader::get_new_iid($type);
 
-        $importer = new csv_import_reader($importid, $type);
+        if (!$importid) {
+            if ($text === null) {
+                return;
+            }
+            $this->importid = csv_import_reader::get_new_iid($type);
 
-        if (!$importer->load_csv_content($text, 'utf-8', 'comma')) {
+            $this->importer = new csv_import_reader($this->importid, $type);
+
+            if (!$this->importer->load_csv_content($text, $encoding, $delimiter)) {
+                $this->fail(get_string('invalidimportfile', 'tool_lpimportcsv'));
+                $this->importer->cleanup();
+                return;
+            }
+            
+        } else {
+            $this->importid = $importid;
+
+            $this->importer = new csv_import_reader($this->importid, $type);
+        }
+
+
+        if (!$this->importer->init()) {
             $this->fail(get_string('invalidimportfile', 'tool_lpimportcsv'));
-            $importer->cleanup();
+            $this->importer->cleanup();
             return;
         }
 
-        if (!$importer->init()) {
-            $this->fail(get_string('invalidimportfile', 'tool_lpimportcsv'));
-            $importer->cleanup();
-            return;
-        }
+        $this->foundheaders = $this->importer->get_columns();
 
         $domainid = 1;
 
         $flat = array();
         $framework = null;
 
-        while ($row = $importer->next()) {
-            $parentidnumber = $row[0];
-            $idnumber = $row[1];
-            $shortname = $row[2];
-            $description = $row[3];
-            $descriptionformat = $row[4];
-            $scalevalues = $row[5];
-            $scaleconfiguration = $row[6];
-            $ruletype = $row[7];
-            $ruleoutcome = $row[8];
-            $ruleconfig = $row[9];
-            $relatedidnumbers = $row[10];
-            $exportid = $row[11];
-            $isframework = $row[12];
-            $taxonomies = $row[13];
+        while ($row = $this->importer->next()) {
+            $mapping = $this->read_mapping_data($mappingdata);
+
+            $parentidnumber = $row[$mapping['parentidnumber']];
+            $idnumber = $row[$mapping['idnumber']];
+            $shortname = $row[$mapping['shortname']];
+            $description = $row[$mapping['description']];
+            $descriptionformat = $row[$mapping['descriptionformat']];
+            $scalevalues = $row[$mapping['scalevalues']];
+            $scaleconfiguration = $row[$mapping['scaleconfiguration']];
+            $ruletype = $row[$mapping['ruletype']];
+            $ruleoutcome = $row[$mapping['ruleoutcome']];
+            $ruleconfig = $row[$mapping['ruleconfig']];
+            $relatedidnumbers = $row[$mapping['relatedidnumbers']];
+            $exportid = $row[$mapping['exportid']];
+            $isframework = $row[$mapping['isframework']];
+            $taxonomies = $row[$mapping['taxonomies']];
             
             if ($isframework) {
                 $framework = new stdClass();
@@ -136,10 +220,10 @@ class framework_importer {
         $this->flat = $flat;
         $this->framework = $framework;
 
-        $importer->close();
-        $importer->cleanup();
+        $this->importer->close();
         if ($this->framework == null) {
             $this->fail(get_string('invalidimportfile', 'tool_lpimportcsv'));
+            $this->importer->cleanup();
             return;
         } else {
             // Build a tree from this flat list.
@@ -304,6 +388,7 @@ class framework_importer {
             $this->set_related($record);
         }
 
+        $this->importer->cleanup();
         return $framework;
     }
 }

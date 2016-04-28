@@ -63,25 +63,11 @@ class framework_exporter {
         $filename = clean_param($this->framework->get_shortname() . '-' . $this->framework->get_idnumber(), PARAM_FILE);
         $writer->set_filename($filename);
 
-        $headers = array(
-            get_string('parentidnumber', 'tool_lpimportcsv'),
-            get_string('idnumber', 'tool_lpimportcsv'),
-            get_string('shortname', 'tool_lpimportcsv'),
-            get_string('description', 'tool_lpimportcsv'),
-            get_string('descriptionformat', 'tool_lpimportcsv'),
-            get_string('scalevalues', 'tool_lpimportcsv'),
-            get_string('scaleconfiguration', 'tool_lpimportcsv'),
-            get_string('ruletype', 'tool_lpimportcsv'),
-            get_string('ruleoutcome', 'tool_lpimportcsv'),
-            get_string('ruleconfig', 'tool_lpimportcsv'),
-            get_string('relatedidnumbers', 'tool_lpimportcsv'),
-            get_string('exportid', 'tool_lpimportcsv'),
-            get_string('isframework', 'tool_lpimportcsv'),
-            get_string('taxonomy', 'tool_lpimportcsv'),
-        );
+        $headers = framework_importer::list_required_headers();
 
         $writer->add_data($headers);
 
+        // Order and number of columns must match framework_importer::list_required_headers().
         $row = array(
             '',
             $this->framework->get_idnumber(),
@@ -134,7 +120,7 @@ class framework_exporter {
             }
             $relatedidnumbers = implode(',', $relatedidnumbers);
             
-
+            // Order and number of columns must match framework_importer::list_required_headers().
             $row = array(
                 $parentidnumber,
                 $competency->get_idnumber(),
