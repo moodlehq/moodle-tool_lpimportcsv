@@ -33,7 +33,7 @@ use csv_export_writer;
 /**
  * Export Competency framework.
  *
- * @package   tool_lp
+ * @package   tool_lpimportcsv
  * @copyright 2015 Damyon Wiese
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */

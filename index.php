@@ -15,10 +15,10 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Page to edit a plan.
+ * Import a framework.
  *
- * @package    tool_lp
- * @copyright  2015 David Monllao
+ * @package    tool_lpimportcsv
+ * @copyright  2016 Damyon Wiese
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
