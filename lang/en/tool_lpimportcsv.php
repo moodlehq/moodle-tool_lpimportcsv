@@ -30,7 +30,7 @@ $string['noframeworks'] = 'No competency frameworks have been created yet';
 $string['export'] = 'Export';
 $string['import'] = 'Import';
 
-$string['parentidnumber'] = 'Parent Id number';
+$string['parentidnumber'] = 'Parent id number';
 $string['idnumber'] = 'Id number';
 $string['shortname'] = 'Shortname';
 $string['description'] = 'Description';
@@ -43,6 +43,6 @@ $string['ruleconfig'] = 'Rule config (optional)';
 $string['isframework'] = 'Is framework';
 $string['taxonomy'] = 'Taxonomy';
 $string['competencyscale'] = 'Competency Scale: {$a}';
-$string['exportid'] = 'Exported Id (optional)';
+$string['exportid'] = 'Exported id (optional)';
 $string['competencyscaledescription'] = 'Competency scale created by import';
-$string['relatedidnumbers'] = 'Related competency Id numbers';
+$string['relatedidnumbers'] = 'Cross referenced competency id numbers';
