@@ -74,6 +74,7 @@ class framework_exporter {
             get_string('ruletype', 'tool_lpimportcsv'),
             get_string('ruleoutcome', 'tool_lpimportcsv'),
             get_string('ruleconfig', 'tool_lpimportcsv'),
+            get_string('relatedidnumbers', 'tool_lpimportcsv'),
             get_string('exportid', 'tool_lpimportcsv'),
             get_string('isframework', 'tool_lpimportcsv'),
             get_string('taxonomy', 'tool_lpimportcsv'),
@@ -89,6 +90,7 @@ class framework_exporter {
             $this->framework->get_descriptionformat(),
             $this->framework->get_scale()->compact_items(),
             $this->framework->get_scaleconfiguration(),
+            '',
             '',
             '',
             '',
@@ -124,6 +126,15 @@ class framework_exporter {
                 $ruleconfig = "null";
             }
 
+            $allrelated = $competency->get_related_competencies();
+
+            $relatedidnumbers = array();
+            foreach ($allrelated as $onerelated) {
+                $relatedidnumbers[] = str_replace(',', '%2C', $onerelated->get_idnumber());
+            }
+            $relatedidnumbers = implode(',', $relatedidnumbers);
+            
+
             $row = array(
                 $parentidnumber,
                 $competency->get_idnumber(),
@@ -135,6 +146,7 @@ class framework_exporter {
                 $competency->get_ruletype(),
                 $competency->get_ruleoutcome(),
                 $ruleconfig,
+                $relatedidnumbers,
                 $competency->get_id(),
                 false,
                 ''

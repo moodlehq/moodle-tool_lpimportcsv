@@ -100,9 +100,10 @@ class framework_importer {
             $ruletype = $row[7];
             $ruleoutcome = $row[8];
             $ruleconfig = $row[9];
-            $exportid = $row[10];
-            $isframework = $row[11];
-            $taxonomies = $row[12];
+            $relatedidnumbers = $row[10];
+            $exportid = $row[11];
+            $isframework = $row[12];
+            $taxonomies = $row[13];
             
             if ($isframework) {
                 $framework = new stdClass();
@@ -124,6 +125,7 @@ class framework_importer {
                 $competency->ruletype = $ruletype;
                 $competency->ruleoutcome = clean_param($ruleoutcome, PARAM_INT);
                 $competency->ruleconfig = $ruleconfig;
+                $competency->relatedidnumbers = $relatedidnumbers;
                 $competency->exportid = $exportid;
                 $competency->scalevalues = $scalevalues;
                 $competency->scaleconfiguration = $scaleconfiguration;
@@ -240,6 +242,24 @@ class framework_importer {
         return $matchingscale->id;
     }
 
+    private function set_related($record) {
+        $comp = $record->createdcomp;
+        if ($record->relatedidnumbers) {
+            $allidnumbers = explode(',', $record->relatedidnumbers);
+            foreach ($allidnumbers as $rawidnumber) {
+                $idnumber = str_replace('%2C', ',', $rawidnumber);
+
+                if (isset($this->flat[$idnumber])) {
+                    $relatedcomp = $this->flat[$idnumber]->createdcomp;
+                    api::add_related_competency($comp->get_id(), $relatedcomp->get_id());
+                }
+            }
+        }
+        foreach ($record->children as $child) {
+            $this->set_related($child);
+        }
+    }
+
     private function set_rules($record) {
         $comp = $record->createdcomp;
         if ($record->ruletype) {
@@ -281,6 +301,7 @@ class framework_importer {
         // Now create the rules.
         foreach ($this->framework->children as $record) {
             $this->set_rules($record);
+            $this->set_related($record);
         }
 
         return $framework;
