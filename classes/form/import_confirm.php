@@ -59,11 +59,14 @@ class import_confirm extends moodleform {
         if (empty($foundheaders)) {
             $foundheaders = range(0, count($requiredheaders));
         }
+        $foundheaders[-1] = get_string('none');
 
         foreach ($requiredheaders as $index => $requiredheader) {
             $mform->addElement('select', 'header' . $index, $requiredheader, $foundheaders);
             if (isset($foundheaders[$index])) {
                 $mform->setDefault('header' . $index, $index);
+            } else {
+                $mform->setDefault('header' . $index, -1);
             }
         }
 

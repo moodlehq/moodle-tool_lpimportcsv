@@ -123,6 +123,13 @@ class framework_importer {
         }
     }
 
+    private function get_row_data($row, $index) {
+        if ($index < 0) {
+            return '';
+        }
+        return isset($row[$index]) ? $row[$index] : '';
+    }
+
     /**
      * Constructor - parses the raw text for sanity.
      */
@@ -174,20 +181,20 @@ class framework_importer {
         while ($row = $this->importer->next()) {
             $mapping = $this->read_mapping_data($mappingdata);
 
-            $parentidnumber = $row[$mapping['parentidnumber']];
-            $idnumber = $row[$mapping['idnumber']];
-            $shortname = $row[$mapping['shortname']];
-            $description = $row[$mapping['description']];
-            $descriptionformat = $row[$mapping['descriptionformat']];
-            $scalevalues = $row[$mapping['scalevalues']];
-            $scaleconfiguration = $row[$mapping['scaleconfiguration']];
-            $ruletype = $row[$mapping['ruletype']];
-            $ruleoutcome = $row[$mapping['ruleoutcome']];
-            $ruleconfig = $row[$mapping['ruleconfig']];
-            $relatedidnumbers = $row[$mapping['relatedidnumbers']];
-            $exportid = $row[$mapping['exportid']];
-            $isframework = $row[$mapping['isframework']];
-            $taxonomies = $row[$mapping['taxonomies']];
+            $parentidnumber = $this->get_row_data($row, $mapping['parentidnumber']);
+            $idnumber = $this->get_row_data($row, $mapping['idnumber']);
+            $shortname = $this->get_row_data($row, $mapping['shortname']);
+            $description = $this->get_row_data($row, $mapping['description']);
+            $descriptionformat = $this->get_row_data($row, $mapping['descriptionformat']);
+            $scalevalues = $this->get_row_data($row, $mapping['scalevalues']);
+            $scaleconfiguration = $this->get_row_data($row, $mapping['scaleconfiguration']);
+            $ruletype = $this->get_row_data($row, $mapping['ruletype']);
+            $ruleoutcome = $this->get_row_data($row, $mapping['ruleoutcome']);
+            $ruleconfig = $this->get_row_data($row, $mapping['ruleconfig']);
+            $relatedidnumbers = $this->get_row_data($row, $mapping['relatedidnumbers']);
+            $exportid = $this->get_row_data($row, $mapping['exportid']);
+            $isframework = $this->get_row_data($row, $mapping['isframework']);
+            $taxonomies = $this->get_row_data($row, $mapping['taxonomies']);
             
             if ($isframework) {
                 $framework = new stdClass();
@@ -223,7 +230,6 @@ class framework_importer {
         $this->importer->close();
         if ($this->framework == null) {
             $this->fail(get_string('invalidimportfile', 'tool_lpimportcsv'));
-            $this->importer->cleanup();
             return;
         } else {
             // Build a tree from this flat list.
@@ -348,15 +354,17 @@ class framework_importer {
         $comp = $record->createdcomp;
         if ($record->ruletype) {
             $class = $record->ruletype;
-            $oldruleconfig = $record->ruleconfig;
-            if ($oldruleconfig == "null") {
-                $oldruleconfig = null;
+            if (class_exists($class)) {
+                $oldruleconfig = $record->ruleconfig;
+                if ($oldruleconfig == "null") {
+                    $oldruleconfig = null;
+                }
+                $newruleconfig = $class::migrate_config($oldruleconfig, $this->mappings);
+                $comp->set_ruleconfig($newruleconfig);
+                $comp->set_ruletype($class);
+                $comp->set_ruleoutcome($record->ruleoutcome);
+                $comp->update();
             }
-            $newruleconfig = $class::migrate_config($oldruleconfig, $this->mappings);
-            $comp->set_ruleconfig($newruleconfig);
-            $comp->set_ruletype($class);
-            $comp->set_ruleoutcome($record->ruleoutcome);
-            $comp->update();
         }
         foreach ($record->children as $child) {
             $this->set_rules($child);

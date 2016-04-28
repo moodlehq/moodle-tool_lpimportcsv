@@ -72,7 +72,7 @@ class import extends moodleform {
         $mform->setDefault('encoding', 'UTF-8');
         $mform->addHelpButton('encoding', 'encoding', 'tool_lpimportcsv');
 
-        $this->add_action_buttons(true, get_string('import', 'tool_lpimportcsv'));
+        $this->add_action_buttons(false, get_string('import', 'tool_lpimportcsv'));
     }
 
     public function set_import_error($msg) {
