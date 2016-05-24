@@ -8,7 +8,7 @@ competency rules.
 Install from git:
 
 Navigate to Moodle root folder
-git clone git://github.com/damyon/moodle-tool_lpimportcsv.git admin/tool/lpimportcsv
+git clone https://github.com/moodlehq/moodle-tool_lpimportcsv admin/tool/lpimportcsv
 cd admin/tool/lpimportcsv
 git branch -a
 git checkout master
